@@ -172,7 +172,7 @@ app.post("/api/listings", auth(), (req, res, next) => {
     const r = db.prepare(`INSERT INTO listings
       (seller_id,title,description,category,brand,model,condition,price,currency,allow_offers,min_offer,
        country,city,lat,lng,ships,pickup_location,status,expires_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       req.user.id, b.title, b.description || "", b.category || "console", b.brand || "", b.model || "",
       b.condition || "Good", Number(b.price), b.currency || "USD", b.allow_offers === false ? 0 : 1,
       b.min_offer != null && b.min_offer !== "" ? Number(b.min_offer) : null,
@@ -476,7 +476,7 @@ app.get("/api/suggest", (req, res) => {
 // ---------- fallback + errors ----------
 app.get("*", (_req, res) => res.sendFile(path.join(ROOT, "public", "index.html")));
 app.use((err, _req, res, _next) => {
-  console.error(err);
+  if (!err.status || err.status >= 500) console.error(err);
   res.status(err.status || 500).json({ error: err.message || "Server error" });
 });
 
