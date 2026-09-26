@@ -684,6 +684,13 @@ async function adminPage() {
 }
 window.resolveRep = async (id, action) => { await api(`/api/admin/reports/${id}/resolve`, { method: "POST", body: JSON.stringify({ action }) }); route(); };
 function authPage() {
+  // NOTE: no <script> tags here — scripts injected via innerHTML never execute.
+  setTimeout(() => {
+    document.getElementById("a-country")?.addEventListener("change", (e) => {
+      document.getElementById("a-city").innerHTML = (GEO[e.target.value] || []).map((c) => "<option>" + c + "</option>").join("");
+    });
+    renderGoogleBtn(0);
+  }, 0);
   return `<div class="max-w-md mx-auto rounded-xl p-6" style="background:var(--card);border:1px solid var(--line)">
   <div class="rail-title" style="color:var(--amber)">LOGIN / SIGNUP</div>
   <input id="a-name" class="input mt-3" placeholder="Display name (signup only)">
@@ -694,20 +701,28 @@ function authPage() {
   <div class="flex gap-2 mt-3"><button class="btn flex-1" onclick="doLogin()">Login</button><button class="btn teal flex-1" onclick="doRegister()">Sign up</button></div>
   <div class="flex items-center gap-2 my-3"><span style="flex:1;border-top:1px solid var(--line)"></span><span class="text-xs" style="color:var(--muted)">or</span><span style="flex:1;border-top:1px solid var(--line)"></span></div>
   <div id="googleBtn" class="flex justify-center"></div>
-  </div>
-  <script>setTimeout(()=>{document.getElementById('a-country')?.addEventListener('change',e=>{document.getElementById('a-city').innerHTML=(GEO[e.target.value]||[]).map(c=>'<option>'+c+'</option>').join('')});renderGoogleBtn()},0)</script>`;
+  </div>`;
 }
 // Google Identity Services button (rendered only when a client ID is configured).
 let GOOGLE_ID = "";
-function renderGoogleBtn() {
+function renderGoogleBtn(tries = 0) {
   const el = document.getElementById("googleBtn");
   if (!el) return;
-  if (!GOOGLE_ID || !window.google?.accounts?.id) {
+  if (!GOOGLE_ID) {
     el.innerHTML = `<p class="text-xs text-center" style="color:var(--muted)">Google login activates once a client ID is set in <b>.env</b>.</p>`;
     return;
   }
-  window.google.accounts.id.initialize({ client_id: GOOGLE_ID, callback: onGoogleSignIn });
-  window.google.accounts.id.renderButton(el, { theme: "filled_black", size: "large", shape: "pill", text: "signin_with" });
+  if (!window.google?.accounts?.id) {
+    if (tries < 10) return void setTimeout(() => renderGoogleBtn(tries + 1), 500); // GIS still loading
+    el.innerHTML = `<p class="text-xs text-center" style="color:var(--muted)">Couldn't load Google's script — check connection/adblocker and refresh.</p>`;
+    return;
+  }
+  try {
+    window.google.accounts.id.initialize({ client_id: GOOGLE_ID, callback: onGoogleSignIn });
+    window.google.accounts.id.renderButton(el, { theme: "filled_black", size: "large", shape: "pill", text: "signin_with" });
+  } catch (e) {
+    el.innerHTML = `<p class="text-xs text-center" style="color:var(--muted)">Google button error: ${esc(e.message)} — verify the origin in Cloud Console.</p>`;
+  }
 }
 window.onGoogleSignIn = async (resp) => {
   try {
