@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RetroTrade — Retro Console Marketplace</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Press+Start+2P&family=Sora:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="sticky top-0 z-40" style="background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+    <a href="#/" class="font-pixel logo-glow text-sm md:text-base" style="color:var(--amber)">◈ RETRO<span style="color:var(--teal)">TRADE</span></a>
+    <div class="flex-1 relative">
+      <input id="search" class="input" placeholder="Search NES, SNES, Game Boy, PS1…" autocomplete="off">
+      <div id="suggest" class="absolute w-full mt-1 rounded-lg overflow-hidden" style="background:var(--card);border:1px solid var(--line);display:none"></div>
+    </div>
+    <button id="themeBtn" class="btn ghost" title="Toggle theme">◐</button>
+    <a href="#/favorites" class="btn ghost hidden md:inline-block">♥ <span id="favCount"></span></a>
+    <button id="notifBtn" class="btn ghost">🔔<span id="notifCount" class="badge-dot" style="display:none"></span></button>
+    <a href="#/sell/new" class="btn">+ Sell</a>
+    <span id="authArea"></span>
+  </div>
+  <div id="notifPanel" class="max-w-7xl mx-auto px-4 pb-3" style="display:none"><div id="notifList" class="modal" style="max-width:100%"></div></div>
+</header>
+<main id="app" class="max-w-7xl mx-auto px-4 py-6 min-h-screen"></main>
+<footer class="max-w-7xl mx-auto px-4 py-10 text-sm" style="color:var(--muted)">
+  <div class="flex flex-wrap gap-4 justify-between">
+    <span class="font-pixel text-xs" style="color:var(--amber)">RETROTRADE.GG</span>
+    <span>Peer-to-peer retro consoles · negotiate, don't just buy · admin login: admin@retrotrade.gg / admin123 · <a href="#/design" style="color:var(--teal)">design lab</a></span>
+  </div>
+</footer>
+<div id="modalRoot"></div>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

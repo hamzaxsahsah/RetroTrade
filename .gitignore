@@ -1,0 +1,4 @@
+node_modules/
+retrotrade.db*
+uploads/*.*
+!.gitkeep

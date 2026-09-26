@@ -1,0 +1,140 @@
+/* RetroTrade design system — "best of each" synthesis.
+   Retro motif lives in EXACTLY 3 places: (1) logo/wordmark, (2) primary-button
+   hover/focus pixel-corner + CRT glow, (3) empty-state pixel illustration.
+   Nowhere else. Body text is always Inter/Sora. */
+:root{
+  --bg:#13131b; --bg2:#1a1a25; --card:#20202e; --line:#33334a;
+  --ink:#f4f1ea; --muted:#a7a3b8;
+  --amber:#f5a524; --amber-hi:#ffcf5c; --amber-d:#c77f0a;
+  --teal:#2dd4bf; --purple:#8b5cf6;
+  --good:#34d399; --bad:#f87171; --warn:#fbbf24;
+  --card-w:240px;
+}
+/* Design-lab variants: accent color + card density (pick at #/design) */
+[data-design="a"]{ --amber:#f5a524; --amber-hi:#ffcf5c; --card-w:240px; }
+[data-design="b"]{ --amber:#ff6b35; --amber-hi:#ffa25e; --card-w:196px; }
+[data-design="c"]{ --amber:#e8c547; --amber-hi:#f7e08b; --card-w:284px; }
+[data-theme="light"]{ --bg:#f6f3ec; --bg2:#fffdf7; --card:#ffffff; --line:#e5ddcf; --ink:#1d1b16; --muted:#6f6a5e; }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Inter,Sora,system-ui,sans-serif;margin:0}
+/* RETRO PLACE 1/3: logo/wordmark + section headers only */
+.font-pixel{font-family:"Press Start 2P",monospace}
+.logo-glow{text-shadow:0 0 12px rgba(245,165,36,.45),0 0 2px rgba(245,165,36,.8)}
+.rail-title{font-family:"Press Start 2P",monospace;font-size:13px;letter-spacing:.02em}
+
+/* ---------- rails (Netflix mechanics: peek, hover arrows, snap) ---------- */
+.rail{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:6px 22% 16px 4px;scrollbar-width:none;scroll-padding-left:4px}
+.rail::-webkit-scrollbar{display:none}
+.rail>*{scroll-snap-align:start;flex:0 0 auto}
+/* peek: last card is always cut mid-frame, never a hard edge */
+.rail-wrap{position:relative;margin-right:calc(var(--card-w) * -0.22)}
+.rail-btn{position:absolute;top:34%;z-index:5;background:var(--card);border:1px solid var(--line);
+  color:var(--ink);width:38px;height:38px;border-radius:50%;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s}
+@media(hover:hover){ .rail-wrap:hover .rail-btn{opacity:.94;pointer-events:auto} }
+@media(hover:none){ .rail-btn{display:none} }
+.rail-btn:hover{background:var(--amber);color:#14141c;border-color:var(--amber)}
+
+/* ---------- cards: square crop, avatar overlap, price bottom-right ---------- */
+.card{background:transparent;border:none;width:var(--card-w);cursor:pointer;transition:transform .18s ease}
+.card:hover{transform:translateY(-4px)}
+.card .imgwrap{position:relative;width:100%;aspect-ratio:1/1;border-radius:10px;overflow:hidden;
+  border:1px solid var(--line);background:#0d0d14}
+.card .imgwrap img{width:100%;height:100%;object-fit:cover;display:block}
+.card:hover .imgwrap{box-shadow:0 12px 28px rgba(0,0,0,.4)}
+.seller-ava{position:absolute;left:8px;bottom:8px;width:34px;height:34px;border-radius:50%;
+  border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;color:#fff;background:var(--purple)}
+.price-tag{position:absolute;right:8px;bottom:8px;background:var(--amber);color:#181205;
+  font-weight:800;padding:4px 9px;border-radius:7px;font-size:13px}
+.card .meta{padding:8px 2px 0}
+.card .meta .t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta .s{font-size:12px;color:var(--muted)}
+.dist-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;
+  padding:2px 8px;border-radius:999px;background:rgba(45,212,191,.12);color:var(--teal);
+  border:1px solid rgba(45,212,191,.35)}
+
+/* ---------- Discogs-style condition grades ---------- */
+.grade{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;
+  padding:3px 8px;border-radius:5px;border:1px solid;text-transform:uppercase}
+.grade-nm{background:rgba(52,211,153,.14);color:var(--good);border-color:rgba(52,211,153,.5)}
+.grade-vg{background:rgba(45,212,191,.12);color:var(--teal);border-color:rgba(45,212,191,.45)}
+.grade-good{background:rgba(251,191,36,.13);color:var(--warn);border-color:rgba(251,191,36,.45)}
+.grade-parts{background:rgba(248,113,113,.13);color:var(--bad);border-color:rgba(248,113,113,.5)}
+/* legacy pill mapping kept for status pills */
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.pill.mint,.pill.good{background:rgba(45,212,191,.12);color:var(--teal)}
+.pill.fair{background:rgba(251,191,36,.14);color:var(--warn)}
+.pill.parts{background:rgba(248,113,113,.14);color:var(--bad)}
+.pill.status-reserved{background:rgba(139,92,246,.18);color:#c4b5fd}
+.pill.status-sold{background:rgba(248,113,113,.18);color:var(--bad)}
+
+/* ---------- buttons / inputs ---------- */
+.btn{background:var(--amber);color:#181205;font-weight:800;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;transition:box-shadow .15s}
+.btn:hover{background:var(--amber-hi)}
+/* RETRO PLACE 2/3: pixel-corner clip + CRT glow on PRIMARY hover/focus only */
+.btn:not(.ghost):not(.teal):not(.danger):hover,.btn:not(.ghost):not(.teal):not(.danger):focus-visible{
+  clip-path:polygon(0 6px,6px 6px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px));
+  box-shadow:0 0 0 1px var(--amber),0 0 18px rgba(245,165,36,.55),inset 0 0 8px rgba(255,255,255,.15)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.teal{background:var(--teal);color:#06251f}
+.btn.danger{background:var(--bad);color:#2a0b0b}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.input,select.input,textarea.input{background:var(--bg2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;width:100%}
+.chip{white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:700}
+.chip.active{background:var(--amber);color:#181205;border-color:var(--amber)}
+.rowitem{display:flex;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;margin-bottom:10px}
+.rowitem img{width:120px;height:120px;object-fit:cover;border-radius:8px}
+.skel{width:var(--card-w);aspect-ratio:1/1;border-radius:10px;background:linear-gradient(90deg,var(--card) 25%,var(--bg2) 50%,var(--card) 75%);background-size:200% 100%;animation:sh 1.1s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* ---------- negotiation panel: its own teal/purple "mode" ---------- */
+.neg-panel{border:1px solid rgba(45,212,191,.4);border-radius:12px;overflow:hidden;background:linear-gradient(180deg,rgba(45,212,191,.07),rgba(139,92,246,.07))}
+.neg-panel .neg-head{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--teal);text-transform:uppercase}
+.neg-ask{font-size:34px;font-weight:800;color:var(--ink)}
+.neg-ladder{max-height:220px;overflow-y:auto}
+.neg-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px dashed rgba(45,212,191,.25);font-size:13px}
+.neg-row:last-child{border-bottom:none}
+.st-pending{background:rgba(251,191,36,.15);color:var(--warn);border-color:rgba(251,191,36,.5)}
+.st-countered{background:rgba(45,212,191,.14);color:var(--teal);border-color:rgba(45,212,191,.5)}
+.st-accepted{background:rgba(52,211,153,.15);color:var(--good);border-color:rgba(52,211,153,.5)}
+.st-rejected{background:rgba(248,113,113,.13);color:var(--bad);border-color:rgba(248,113,113,.45)}
+.offer-card{border:1px solid var(--teal);background:rgba(45,212,191,.07);border-radius:10px;padding:12px;margin:10px 0}
+.offer-card .new{font-size:22px;font-weight:800;color:var(--teal);animation:slidein .3s ease}
+@keyframes slidein{from{transform:translateX(14px);opacity:0}to{transform:none;opacity:1}}
+.chat-b{max-width:75%;padding:9px 13px;border-radius:14px;margin:6px 0}
+.chat-b.me{background:var(--amber);color:#181205;margin-left:auto}
+.chat-b.them{background:var(--card);border:1px solid var(--line)}
+.stickybar{position:sticky;bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);padding:10px;border-top:1px solid var(--line);display:flex;gap:8px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:440px;width:100%}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;cursor:pointer}
+.drop.over{border-color:var(--amber);background:rgba(245,165,36,.06)}
+.thumb{width:84px;height:84px;object-fit:cover;border-radius:8px;border:2px solid transparent}
+.thumb.cover{border-color:var(--amber)}
+.badge-dot{background:var(--bad);color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;margin-left:6px}
+/* RETRO PLACE 3/3: pixel-art empty states */
+.empty{border:1px dashed var(--line);border-radius:12px;padding:40px 20px;text-align:center;color:var(--muted)}
+.pixel-ghost{font-family:"Press Start 2P",monospace;font-size:26px;color:var(--amber);text-shadow:2px 2px 0 var(--purple);display:block;margin-bottom:12px}
+#map{height:420px;border-radius:12px;border:1px solid var(--line)}
+
+/* ---------- record-store crate rail (browse filters, desktop left) ---------- */
+.crate{border:1px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden}
+.crate h4{margin:0;padding:10px 14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.crate a,.crate button{display:flex;width:100%;text-align:left;background:none;border:none;color:var(--ink);
+  padding:9px 14px;font-size:14px;cursor:pointer;border-left:3px solid transparent}
+.crate a:hover,.crate button:hover{background:rgba(245,165,36,.07)}
+.crate .on{border-left-color:var(--amber);background:rgba(245,165,36,.1);font-weight:800}
+.grade-pick{display:flex;gap:6px;flex-wrap:wrap}
+.grade-pick button{border:1px solid var(--line);background:var(--bg2);color:var(--ink);border-radius:6px;
+  padding:8px 10px;font-weight:800;font-size:12px;cursor:pointer}
+.grade-pick button.on{outline:2px solid var(--amber)}
+.view-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.view-toggle a{padding:7px 16px;font-size:13px;font-weight:800;color:var(--muted);text-decoration:none}
+.view-toggle a.on{background:var(--amber);color:#181205}
+
+/* design-lab mock frames */
+.mock-frame{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+@media(max-width:900px){ .crate-rail{display:none} }
+@media(max-width:720px){ :root{--card-w:172px} [data-design="c"]{--card-w:200px} .rowitem img{width:96px;height:96px} }
