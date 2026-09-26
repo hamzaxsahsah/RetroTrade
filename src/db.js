@@ -25,6 +25,7 @@ export function initDb() {
     rating_avg REAL DEFAULT 0,
     rating_count INTEGER DEFAULT 0,
     is_admin INTEGER DEFAULT 0,
+    google_id TEXT DEFAULT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS listings (
@@ -124,6 +125,9 @@ export function initDb() {
     created_at TEXT DEFAULT (datetime('now'))
   );
   `);
+  // lightweight migration for DBs created before google_id existed
+  try { db.prepare("SELECT google_id FROM users LIMIT 1").get(); }
+  catch { db.exec("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT NULL"); }
 }
 
 export function notify(userId, kind, title, body = "", link = "") {

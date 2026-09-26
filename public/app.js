@@ -692,9 +692,30 @@ function authPage() {
   <div class="grid grid-cols-2 gap-2 mt-2"><select id="a-country" class="input"><option value="">Country</option>${Object.keys(GEO).map((c) => `<option>${c}</option>`).join("")}</select>
   <select id="a-city" class="input"><option value="">City</option></select></div>
   <div class="flex gap-2 mt-3"><button class="btn flex-1" onclick="doLogin()">Login</button><button class="btn teal flex-1" onclick="doRegister()">Sign up</button></div>
-  <p class="text-xs mt-2" style="color:var(--muted)">Google OAuth: not wired in this build — email auth only.</p></div>
-  <script>setTimeout(()=>{document.getElementById('a-country')?.addEventListener('change',e=>{document.getElementById('a-city').innerHTML=(GEO[e.target.value]||[]).map(c=>'<option>'+c+'</option>').join('')})},0)</script>`;
+  <div class="flex items-center gap-2 my-3"><span style="flex:1;border-top:1px solid var(--line)"></span><span class="text-xs" style="color:var(--muted)">or</span><span style="flex:1;border-top:1px solid var(--line)"></span></div>
+  <div id="googleBtn" class="flex justify-center"></div>
+  </div>
+  <script>setTimeout(()=>{document.getElementById('a-country')?.addEventListener('change',e=>{document.getElementById('a-city').innerHTML=(GEO[e.target.value]||[]).map(c=>'<option>'+c+'</option>').join('')});renderGoogleBtn()},0)</script>`;
 }
+// Google Identity Services button (rendered only when a client ID is configured).
+let GOOGLE_ID = "";
+function renderGoogleBtn() {
+  const el = document.getElementById("googleBtn");
+  if (!el) return;
+  if (!GOOGLE_ID || !window.google?.accounts?.id) {
+    el.innerHTML = `<p class="text-xs text-center" style="color:var(--muted)">Google login activates once a client ID is set in <b>.env</b>.</p>`;
+    return;
+  }
+  window.google.accounts.id.initialize({ client_id: GOOGLE_ID, callback: onGoogleSignIn });
+  window.google.accounts.id.renderButton(el, { theme: "filled_black", size: "large", shape: "pill", text: "signin_with" });
+}
+window.onGoogleSignIn = async (resp) => {
+  try {
+    const d = await api("/api/auth/google", { method: "POST", body: JSON.stringify({ idToken: resp.credential }) });
+    localStorage.setItem("rt_token", d.token); ME = d.user;
+    location.hash = "#/"; location.reload();
+  } catch (e) { alert(e.message); }
+};
 window.doLogin = async () => {
   try { const d = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: $("#a-email").value, password: $("#a-pass").value }) }); localStorage.setItem("rt_token", d.token); ME = d.user; location.hash = "#/"; location.reload(); }
   catch (e) { alert(e.message); }
@@ -739,6 +760,7 @@ window.addEventListener("hashchange", () => route());
   document.documentElement.dataset.theme = localStorage.getItem("rt_theme") || "dark";
   document.documentElement.dataset.design = designId();
   GEO = await api("/api/geo").catch(() => ({}));
+  GOOGLE_ID = (await api("/api/config").catch(() => ({}))).googleClientId || "";
   await refreshMe();
   await refreshFavs();
   $("#themeBtn").onclick = () => window.toggleTheme();

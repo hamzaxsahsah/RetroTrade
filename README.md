@@ -13,6 +13,16 @@ npm test           # offer-engine unit tests
 
 Demo logins: `admin@retrotrade.gg / admin123` (admin), `marta@retro.gg / password123` (seller).
 
+## Google login
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials.
+2. Create Credentials → **OAuth client ID** → type **Web application**.
+3. Under Authorized JavaScript origins add `http://localhost:3000` (plus your production URL later).
+4. Copy the **Client ID** into `.env` as `GOOGLE_CLIENT_ID=...apps.googleusercontent.com` (see `.env.example`).
+5. Restart: the dev server loads `.env` automatically — the "Sign in with Google" button appears on the login page once a real ID is set.
+
+How it works: the browser gets a Google ID token, `POST /api/auth/google` verifies its signature + audience server-side (`google-auth-library`), then finds-or-creates the user by Google ID (or verified email, linking existing accounts).
+
 ## How it works
 
 - **Offer engine** (`src/offerEngine.js`): `pending → accepted | rejected`, counters create a chained row (`parent_offer_id`). Only the awaiting party can act; hidden `min_offer` auto-declines lowballs. Fully unit-tested.

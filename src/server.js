@@ -1,8 +1,10 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
+import { OAuth2Client } from "google-auth-library";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -15,6 +17,8 @@ const UPLOADS = path.join(ROOT, "uploads");
 fs.mkdirSync(UPLOADS, { recursive: true });
 
 const JWT_SECRET = process.env.JWT_SECRET || "retrotrade-dev-secret";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const EXPIRY_DAYS = Number(process.env.LISTING_EXPIRY_DAYS || 60);
 
 initDb();
@@ -88,6 +92,11 @@ export const GEO = {
   Morocco: ["Casablanca", "Rabat", "Marrakech", "Fes"],
 };
 app.get("/api/geo", (_req, res) => res.json(GEO));
+// Public client config (safe to expose: client ID is public by design).
+// Returns "" until a real ID is pasted into .env, so the UI shows setup hint.
+app.get("/api/config", (_req, res) => res.json({
+  googleClientId: GOOGLE_CLIENT_ID.includes("paste-your-client-id") ? "" : GOOGLE_CLIENT_ID,
+}));
 
 // ---------- auth ----------
 app.post("/api/auth/register", (req, res, next) => {
@@ -113,6 +122,34 @@ app.post("/api/auth/login", (req, res, next) => {
   } catch (e) { next(e); }
 });
 app.get("/api/auth/me", auth(), (req, res) => res.json({ user: publicUser(req.user) }));
+// Google login: frontend sends the GIS ID token, we verify signature+audience,
+// then find-or-create the user (matched by google_id, else verified email).
+app.post("/api/auth/google", async (req, res, next) => {
+  try {
+    const { idToken } = req.body || {};
+    if (!idToken) return next({ status: 400, message: "idToken required" });
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("paste-your-client-id"))
+      return next({ status: 503, message: "Google login not configured — set GOOGLE_CLIENT_ID in .env" });
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+    const p = ticket.getPayload();
+    if (!p?.email_verified || !p?.email) return next({ status: 401, message: "Google email not verified" });
+    let user = row("SELECT * FROM users WHERE google_id=?", p.sub)
+      || row("SELECT * FROM users WHERE email=?", p.email);
+    if (!user) {
+      const r = db.prepare("INSERT INTO users (name,email,password_hash,avatar_url,google_id) VALUES (?,?,?,?,?)")
+        .run(p.name || p.email.split("@")[0], p.email, bcrypt.hashSync(Math.random().toString(36), 8), p.picture || "", p.sub);
+      user = row("SELECT * FROM users WHERE id=?", r.lastInsertRowid);
+    } else if (!user.google_id) {
+      db.prepare("UPDATE users SET google_id=? WHERE id=?").run(p.sub, user.id);
+      if (!user.avatar_url && p.picture) db.prepare("UPDATE users SET avatar_url=? WHERE id=?").run(p.picture, user.id);
+      user = row("SELECT * FROM users WHERE id=?", user.id);
+    }
+    res.json({ token: sign(user), user: publicUser(user) });
+  } catch (e) {
+    console.error("Google auth failed:", e.message);
+    next({ status: 401, message: "Google sign-in failed — try again" });
+  }
+});
 function publicUser(u) {
   if (!u) return null;
   const { password_hash, ...rest } = u;
