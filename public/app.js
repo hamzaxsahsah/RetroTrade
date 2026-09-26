@@ -41,6 +41,16 @@ async function refreshNotifs() {
   } catch {}
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Top toast notifications (non-blocking replacement for alert()).
+window.toast = (msg, type = "info") => {
+  const box = document.getElementById("toasts") || (() => { const d = document.createElement("div"); d.id = "toasts"; document.body.appendChild(d); return d; })();
+  const el = document.createElement("div");
+  el.className = "toast toast-" + type;
+  el.innerHTML = `<span>${esc(msg)}</span><button aria-label="dismiss">✕</button>`;
+  el.querySelector("button").onclick = () => el.remove();
+  box.appendChild(el);
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 320); }, 3800);
+};
 const money = (l) => `${Number(l.price).toLocaleString()} ${esc(l.currency || "USD")}`;
 // --- Location-based pricing: each country has a home currency; a static
 // indicative FX table (units per 1 USD, no external API so it works offline)
@@ -314,7 +324,7 @@ window.nearMe = () => {
     p.set("sort", "nearest");
     location.hash = `#/browse?${p.toString()}`;
     setTimeout(() => route(), 50);
-  }, () => alert("Geolocation unavailable — allow location access to see distances."));
+  }, () => toast("Geolocation unavailable — allow location access to see distances.", "error"));
 };
 
 // sparkline of negotiation price movement (SVG polyline, teal)
@@ -389,9 +399,20 @@ async function listingPage(id) {
    <section>${rail("SIMILAR LISTINGS", l.brand || l.category, similar.filter((x) => x.id !== l.id).slice(0, 12), "sim")}</section>`;
 }
 window.markSold = async (id) => { await api(`/api/listings/${id}/sold`, { method: "POST" }); route(); };
-window.renew = async (id) => { await api(`/api/listings/${id}/renew`, { method: "POST" }); alert("Renewed!"); route(); };
+window.renew = async (id) => { await api(`/api/listings/${id}/renew`, { method: "POST" }); toast("Renewed!", "success"); route(); };
 window.delListing = async (id) => { if (confirm("Delete?")) { await api(`/api/listings/${id}`, { method: "DELETE" }); location.hash = "#/dashboard"; } };
-window.report = async (type, id) => { const r = prompt("Reason?"); if (r != null) { await api("/api/reports", { method: "POST", body: JSON.stringify({ target_type: type, target_id: id, reason: r }) }); alert("Reported, thanks!"); } };
+window.report = (type, id) => {
+  $("#modalRoot").innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3 class="font-extrabold text-lg">Report ${esc(type)}</h3>
+    <input id="rep-reason" class="input mt-2" placeholder="Reason?">
+    <div class="flex gap-2 mt-3"><button class="btn danger flex-1" onclick="sendReport('${type}',${id})">Report</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div></div></div>`;
+};
+window.sendReport = async (type, id) => {
+  try {
+    await api("/api/reports", { method: "POST", body: JSON.stringify({ target_type: type, target_id: id, reason: $("#rep-reason").value }) });
+    closeModal(); toast("Reported, thanks!", "success");
+  } catch (e) { toast(e.message, "error"); }
+};
 window.buyNow = async (id) => {
   if (!ME) { location.hash = "#/auth"; return; }
   const l = await api(`/api/listings/${id}`);
@@ -419,14 +440,14 @@ window.sendOffer = async (id) => {
   try {
     const o = await api(`/api/listings/${id}/offers`, { method: "POST", body: JSON.stringify({ amount: Number($("#o-amount").value), message: $("#o-msg").value }) });
     closeModal();
-    if (o.autoDeclined) alert("Offer was below the seller's hidden minimum and was auto-declined. Try higher!");
-    else alert("Offer sent! Watch your inbox for a counter.");
+    if (o.autoDeclined) toast("Offer was below the seller's hidden minimum and was auto-declined. Try higher!", "error");
+    else toast("Offer sent! Watch your inbox for a counter.", "success");
     if (o.conversationId) location.hash = `#/messages/${o.conversationId}`;
     else route();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, "error"); }
 };
 
-// ---------- sell (multi-step) ----------
+ // ---------- sell (multi-step) ----------
 let SELL = { step: 0, images: [], title: "", description: "", category: "console", brand: "", model: "", condition: "Good", price: "", currency: "USD", allow_offers: true, min_offer: "", country: "", city: "", ships: false };
 async function sellPage(editId) {
   if (!ME) { location.hash = "#/auth"; return ""; }
@@ -501,7 +522,7 @@ function collectSell() {
 window.sellNav = (d) => { collectSell(); SELL.step = Math.min(4, Math.max(0, SELL.step + d)); route(false); $("#app").scrollIntoView(); };
 window.publishListing = async () => {
   collectSell();
-  if (!SELL.title || !SELL.price) { alert("Title + price required"); return; }
+  if (!SELL.title || !SELL.price) { toast("Title + price required", "error"); return; }
   const payload = { ...SELL, images: SELL.images };
   const url = SELL.editId ? `/api/listings/${SELL.editId}` : "/api/listings";
   const l = await api(url, { method: SELL.editId ? "PUT" : "POST", body: JSON.stringify(payload) });
@@ -540,8 +561,8 @@ async function dashboardPage() {
 }
 window.relist = async (id) => { await api(`/api/listings/${id}/relist`, { method: "POST" }); route(); };
 window.offerAct = async (id, action) => {
-  try { const o = await api(`/api/offers/${id}/${action}`, { method: "POST" }); alert(action === "accept" ? "Accepted! Chat opened 🤝" : "Done."); if (o.conversationId) location.hash = `#/messages/${o.conversationId}`; else route(); }
-  catch (e) { alert(e.message); }
+  try { const o = await api(`/api/offers/${id}/${action}`, { method: "POST" }); toast(action === "accept" ? "Accepted! Chat opened 🤝" : "Done.", "success"); if (o.conversationId) location.hash = `#/messages/${o.conversationId}`; else route(); }
+  catch (e) { toast(e.message, "error"); }
 };
 window.counterModal = (id) => {
   $("#modalRoot").innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -550,8 +571,8 @@ window.counterModal = (id) => {
     <div class="flex gap-2 mt-3"><button class="btn flex-1" onclick="sendCounter(${id})">Send counter</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div></div></div>`;
 };
 window.sendCounter = async (id) => {
-  try { await api(`/api/offers/${id}/counter`, { method: "POST", body: JSON.stringify({ amount: Number($("#c-amount").value), message: $("#c-msg").value }) }); closeModal(); route(); }
-  catch (e) { alert(e.message); }
+  try { await api(`/api/offers/${id}/counter`, { method: "POST", body: JSON.stringify({ amount: Number($("#c-amount").value), message: $("#c-msg").value }) }); closeModal(); toast("Counter-offer sent.", "success"); route(); }
+  catch (e) { toast(e.message, "error"); }
 };
 
 // ---------- messages ----------
@@ -611,7 +632,7 @@ window.sendMsg = async (cid) => {
 };
 window.completeThread = async (cid) => {
   const c = await api(`/api/conversations/${cid}/complete`, { method: "POST" });
-  alert(c.completed_by_buyer && c.completed_by_seller ? "Both confirmed — marked SOLD! 🎉 Please leave a review." : "Marked complete on your side. Waiting on the other party.");
+  toast(c.completed_by_buyer && c.completed_by_seller ? "Both confirmed — marked SOLD! 🎉 Please leave a review." : "Marked complete on your side. Waiting on the other party.", "success");
   route();
 };
 
@@ -659,7 +680,7 @@ window.saveSettings = async () => {
   ME = d.user;
   const c = $("#set-cur").value;
   if (c) localStorage.setItem("rt_currency", c); else localStorage.removeItem("rt_currency");
-  alert("Saved!"); route();
+  toast("Saved!", "success"); route();
 };
 window.toggleTheme = () => {
   const h = document.documentElement;
@@ -729,15 +750,15 @@ window.onGoogleSignIn = async (resp) => {
     const d = await api("/api/auth/google", { method: "POST", body: JSON.stringify({ idToken: resp.credential }) });
     localStorage.setItem("rt_token", d.token); ME = d.user;
     location.hash = "#/"; location.reload();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, "error"); }
 };
 window.doLogin = async () => {
   try { const d = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: $("#a-email").value, password: $("#a-pass").value }) }); localStorage.setItem("rt_token", d.token); ME = d.user; location.hash = "#/"; location.reload(); }
-  catch (e) { alert(e.message); }
+  catch (e) { toast(e.message, "error"); }
 };
 window.doRegister = async () => {
   try { const d = await api("/api/auth/register", { method: "POST", body: JSON.stringify({ name: $("#a-name").value || "Player1", email: $("#a-email").value, password: $("#a-pass").value, country: $("#a-country").value, city: $("#a-city").value }) }); localStorage.setItem("rt_token", d.token); ME = d.user; location.hash = "#/"; location.reload(); }
-  catch (e) { alert(e.message); }
+  catch (e) { toast(e.message, "error"); }
 };
 
 // ---------- router ----------
