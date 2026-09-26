@@ -561,7 +561,7 @@ async function dashboardPage() {
 }
 window.relist = async (id) => { await api(`/api/listings/${id}/relist`, { method: "POST" }); route(); };
 window.offerAct = async (id, action) => {
-  try { const o = await api(`/api/offers/${id}/${action}`, { method: "POST" }); toast(action === "accept" ? "Accepted! Chat opened 🤝" : "Done.", "success"); if (o.conversationId) location.hash = `#/messages/${o.conversationId}`; else route(); }
+  try { const o = await api(`/api/offers/${id}/${action}`, { method: "POST" }); toast(action === "accept" ? "Accepted! Chat opened 🤝" : "Done.", "success"); if (o.conversationId) { const target = `#/messages/${o.conversationId}`; if (location.hash === target) route(); else location.hash = target; } else route(); }
   catch (e) { toast(e.message, "error"); }
 };
 window.counterModal = (id) => {
@@ -590,15 +590,26 @@ async function messagesPage() {
 async function threadPage(cid) {
   if (!ME) { location.hash = "#/auth"; return ""; }
   const t = await api(`/api/conversations/${cid}`);
-  clearInterval(POLL);
-  POLL = setInterval(async () => {
-    try {
-      const fresh = await api(`/api/conversations/${cid}`);
-      if (fresh.messages.length !== t.messages.length) route(false);
-    } catch {}
-  }, 4000);
+  startThreadPoll(cid);
   const isSeller = ME.id === t.seller_id;
-  const msgs = t.messages.map((m) => {
+  return `<a class="text-sm" style="color:var(--amber)" href="#/messages">← Inbox</a>
+  <div class="rounded-xl p-3 mt-2 flex gap-3 items-center" style="background:var(--card);border:1px solid var(--line)">
+    <img src="${img0(t.listing)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px">
+    <div><b>${esc(t.listing.title)}</b><div style="color:var(--amber)" class="font-extrabold">${t.agreed_price ? `✅ Agreed: ${t.agreed_price}` : money(t.listing)} </div></div>
+    <a class="btn ghost ml-auto" href="#/listing/${t.listing.id}">View</a>
+    <button class="btn teal" onclick="completeThread(${t.id})">Mark completed</button></div>
+  <div id="thread-msgs" data-sig="${esc(sigOf(t))}" class="rounded-xl p-3 mt-2" style="background:var(--bg2);border:1px solid var(--line);min-height:300px">${threadMsgsHtml(t, isSeller)}</div>
+  <div class="stickybar rounded-xl mt-2"><input id="chat-in" class="input" placeholder="Write a message…" onkeydown="if(event.key==='Enter')sendMsg(${t.id})">
+  <button class="btn" onclick="sendMsg(${t.id})">Send</button></div>`;
+}
+// Signature covering new messages AND offer-status flips, so the poller
+// only touches the DOM when something actually changed.
+function sigOf(t) {
+  return t.messages.map((m) => m.id + ":" + (m.type === "offer_card"
+    ? (t.offers.find((o) => o.id === m.offer_id)?.status || "?") : m.content)).join("|");
+}
+function threadMsgsHtml(t, isSeller) {
+  const html = t.messages.map((m) => {
     if (m.type === "offer_card") {
       const o = t.offers.find((x) => x.id === m.offer_id);
       if (!o) return "";
@@ -614,21 +625,34 @@ async function threadPage(cid) {
     }
     return `<div class="chat-b ${m.sender_id === ME.id ? "me" : "them"}">${esc(m.content)}</div>`;
   }).join("");
-  return `<a class="text-sm" style="color:var(--amber)" href="#/messages">← Inbox</a>
-  <div class="rounded-xl p-3 mt-2 flex gap-3 items-center" style="background:var(--card);border:1px solid var(--line)">
-    <img src="${img0(t.listing)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px">
-    <div><b>${esc(t.listing.title)}</b><div style="color:var(--amber)" class="font-extrabold">${t.agreed_price ? `✅ Agreed: ${t.agreed_price}` : money(t.listing)} </div></div>
-    <a class="btn ghost ml-auto" href="#/listing/${t.listing.id}">View</a>
-    <button class="btn teal" onclick="completeThread(${t.id})">Mark completed</button></div>
-  <div class="rounded-xl p-3 mt-2" style="background:var(--bg2);border:1px solid var(--line);min-height:300px">${msgs || `<div class="empty">Say hi! Negotiate with offer cards above.</div>`}</div>
-  <div class="stickybar rounded-xl mt-2"><input id="chat-in" class="input" placeholder="Write a message…" onkeydown="if(event.key==='Enter')sendMsg(${t.id})">
-  <button class="btn" onclick="sendMsg(${t.id})">Send</button></div>`;
+  return html || `<div class="empty">Say hi! Negotiate with offer cards above.</div>`;
+}
+// Surgical refresh: patch the message list only — never the input, never the scroll,
+// unless the user was already at the bottom (then follow the conversation down).
+async function refreshThread(cid, follow = false) {
+  const box = document.getElementById("thread-msgs");
+  if (!box) return;
+  const fresh = await api(`/api/conversations/${cid}`);
+  const sig = sigOf(fresh);
+  if (sig === box.dataset.sig) return;
+  const nearBottom = follow || (window.innerHeight + window.scrollY) > document.body.scrollHeight - 300;
+  box.dataset.sig = sig;
+  box.innerHTML = threadMsgsHtml(fresh, ME.id === fresh.seller_id);
+  if (nearBottom) window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  else toast("New message below ↓", "info");
+}
+function startThreadPoll(cid) {
+  clearInterval(POLL);
+  POLL = setInterval(() => refreshThread(cid).catch(() => {}), 3000);
+  setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 100); // open at latest
 }
 window.sendMsg = async (cid) => {
-  const v = $("#chat-in").value;
+  const input = $("#chat-in");
+  const v = input.value;
   if (!v.trim()) return;
+  input.value = "";
   await api(`/api/conversations/${cid}/messages`, { method: "POST", body: JSON.stringify({ content: v }) });
-  route(false);
+  refreshThread(cid, true).catch(() => {});
 };
 window.completeThread = async (cid) => {
   const c = await api(`/api/conversations/${cid}/complete`, { method: "POST" });
